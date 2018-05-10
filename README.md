@@ -4,6 +4,7 @@
 ![HeaderImg](http://tw.greywool.com/i/tMh7k.jpg)
 
 # Bezier Surface With WebGL
+# Realistic Rendering Techniques on Parametric Surfaces
 This project aims to create a Bezier Surface with n-degree Bezier Curves. It also handles parametric texture mapping, normal mapping and specular mapping.
 ## About
 For general UI I used Creative Tim's Now UI Kit which can be seen in here -> https://www.creative-tim.com/product/now-ui-kit
