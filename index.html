@@ -1,0 +1,357 @@
+<html>
+<head>
+
+  <title>Assignment 3</title>
+  <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
+  <!--     Fonts and icons     -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" />
+  <!-- CSS Files -->
+  <link href="./assets/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="./assets/css/now-ui-kit.css?v=1.1.0" rel="stylesheet" />
+
+
+<!-- Simple Tweaks in template -->
+<style>
+.bg-success {
+  background: #1D4350;  /* fallback for old browsers */
+background: -webkit-linear-gradient(to left, #A43931, #1D4350);  /* Chrome 10-25, Safari 5.1-6 */
+background: linear-gradient(to left, #A43931, #1D4350); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+
+}
+
+
+body {
+      background-color: black;
+}
+.btn-warning {
+  background: #1D4350;  /* fallback for old browsers */
+  background: -webkit-linear-gradient(to left, #A43931, #1D4350);  /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to left, #A43931, #1D4350); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+
+}
+
+.nav-link {
+  cursor: pointer;
+}
+</style>
+
+
+<script id="primitive-vshader" type="x-shader/x-vertex">
+attribute vec4 aVertexPosition_ms;
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 P;
+
+void main() {
+	gl_Position = P*V*M*aVertexPosition_ms;
+}
+</script>
+<script id="primitive-fshader" type="x-shader/x-fragment">
+precision mediump float;
+uniform vec4 uColor;
+void main(){
+	gl_FragColor = uColor;
+}
+</script>
+
+<script id="wireframe-vshader" type="x-shader/x-vertex">
+precision mediump float;
+
+attribute vec3 aNormal_ms;
+attribute vec4 aVertexPosition_ms;
+attribute vec2 aTexcoord;
+
+//varying vec3 vColor;
+varying vec3 vDiffuse;
+varying vec3 vSpecular;
+varying vec2 vTexcoord;
+
+uniform vec3 uLightPosition_ws;
+
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 P;
+
+uniform mat3 N;
+
+void main() {
+  gl_Position = P * V * M * aVertexPosition_ms;
+  vec3 LightColor = vec3(1, 1, 1);
+  vec3 n = normalize( vec3(10,1,0) * aNormal_ms);
+  float cosTheta = clamp(dot(n, vec3(1.0,1.0,1.0)), 0.0, 1.0);
+   vDiffuse = LightColor  * cosTheta;
+
+}</script>
+
+<script id="wireframe-fshader" type="x-shader/x-fragment">
+precision mediump float;
+
+void main() {
+  gl_FragColor.rgb = vec3(1.0,1.0,1.0);
+  gl_FragColor.a = 1.0;
+}
+</script>
+
+
+<script id="gouraud-vshader" type="x-shader/x-vertex">
+precision mediump float;
+
+attribute vec3 aNormal_ms;
+attribute vec4 aVertexPosition_ms;
+attribute vec2 aTexcoord;
+
+//varying vec3 vColor;
+varying vec3 vDiffuse;
+varying vec3 vSpecular;
+varying vec2 vTexcoord;
+varying vec3 vLight;
+varying vec3 vNorm;
+
+uniform vec3 uLightPosition_ws;
+uniform vec2 timeShifter;
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 P;
+
+uniform mat3 N;
+
+void main() {
+  gl_Position = P * V * M * aVertexPosition_ms;
+  vec3 lightPosition_cs = (V * vec4(uLightPosition_ws, 1)).xyz;
+  vec3 vertexPosition_cs = (V * M * aVertexPosition_ms).xyz;
+  vec3 LightColor = vec3(1, 1, 1);
+  vec3 MaterialSpecularColor = vec3(0.3, 0.3, 0.3);
+  float distance = length(uLightPosition_ws - (M * aVertexPosition_ms).xyz);
+  vec3 n = normalize(N * aNormal_ms);
+  vec3 l = normalize(lightPosition_cs - vertexPosition_cs);
+  vec3 e = normalize(vec3(0, 0, 0) - vertexPosition_cs);
+  vec3 r = reflect(-l, n);
+
+  float cosTheta = clamp(dot(n, l), 0.0, 1.0);
+
+  float cosAlpha = clamp(dot(e, r), 0.0, 1.0);
+
+  float LightPower = 4000.0 / (distance * distance);
+
+  vTexcoord = aTexcoord;
+  float shininess = 35.0;
+
+   vLight = l;
+   vNorm = N * aNormal_ms;
+   vDiffuse = LightColor * LightPower;// * cosTheta;
+   vSpecular =  LightColor * LightPower * pow(cosAlpha, shininess);
+
+}</script>
+
+<script id="gouraud-fshader" type="x-shader/x-fragment">
+precision mediump float;
+
+//varying vec3 vColor;
+varying vec3 vDiffuse;
+varying vec3 vSpecular;
+varying vec2 vTexcoord;
+varying vec3 vLight;
+varying vec3 vNorm;
+
+uniform sampler2D uDiffuseTexture;
+uniform sampler2D uSpecularTexture;
+uniform sampler2D uNormalTexture;
+
+uniform vec2 timeShifter;
+uniform vec3 uLightPosition_ws;
+
+void main() {
+  vec3 normalMap = normalize( texture2D( uNormalTexture, vTexcoord + timeShifter ).rgb * 2. - 1.0);
+  float cosTheta = clamp(dot(normalize(vNorm*normalMap), vLight), 0.0, 1.0);
+
+  vec3 MaterialDiffuseColor = texture2D(uDiffuseTexture, vTexcoord + timeShifter).rgb;
+  vec3 MaterialAmbientColor = 0.9 * MaterialDiffuseColor;
+  vec3 vDiffuseTex = MaterialDiffuseColor * vDiffuse * cosTheta ;
+  gl_FragColor.rgb = vDiffuseTex  + MaterialAmbientColor + (vSpecular * texture2D(uSpecularTexture, vTexcoord + timeShifter).rgb);
+  gl_FragColor.a = 1.0;
+}
+</script>
+
+
+<script id="phong-vshader" type="x-shader/x-vertex">
+
+precision mediump float;
+// Attribs
+attribute vec3 aNormal_ms;
+attribute vec4 aVertexPosition_ms;
+attribute vec2 aTexcoord;
+// Varyings
+varying vec2 vTexcoord;
+varying vec3 vVertexPosition_ws;
+varying vec3 vNormal_cs;
+varying vec3 vLightDirection_cs;
+varying vec3 vEyeDirection_cs;
+
+uniform vec3 uLightPosition_ws;
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 P;
+uniform mat3 N;
+
+void main()
+{
+	gl_Position = P*V*M*aVertexPosition_ms;
+	vVertexPosition_ws = (M*aVertexPosition_ms).xyz;
+	vec3 lightPosition_cs = ( V * vec4(uLightPosition_ws,1)).xyz;
+	vec3 vertexPosition_cs = (V * M * aVertexPosition_ms).xyz;
+
+	vEyeDirection_cs = vec3(0,0,0) - vertexPosition_cs;
+	vLightDirection_cs = lightPosition_cs - vertexPosition_cs;
+
+	vNormal_cs = N*aNormal_ms;
+	vTexcoord = aTexcoord;
+}
+
+</script>
+
+<script id="phong-fshader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec2 vTexcoord;
+
+varying vec3 vVertexPosition_ws;
+varying vec3 vNormal_cs;
+varying vec3 vLightDirection_cs;
+varying vec3 vEyeDirection_cs;
+
+uniform sampler2D uDiffuseTexture;
+uniform sampler2D uSpecularTexture;
+uniform sampler2D uNormalTexture;
+uniform vec2 timeShifter;
+uniform vec3 uLightPosition_ws;
+
+void main() {
+	vec3 LightColor = vec3(1,1,1);
+
+	vec3 MaterialDiffuseColor = texture2D( uDiffuseTexture, vTexcoord + timeShifter ).rgb;
+
+	vec3 MaterialAmbientColor = 0.9 * MaterialDiffuseColor;
+
+	vec3 MaterialSpecularColor = vec3(0.3,0.3,0.3);
+
+	float distance = length(uLightPosition_ws - vVertexPosition_ws);
+
+  // Retrieve the normal from the normal map
+  vec3 normalMap = normalize( texture2D( uNormalTexture, vTexcoord + timeShifter ).rgb * 1.5 - 1.0);
+
+	vec3 n = normalize(vNormal_cs*normalMap);
+	vec3 l = normalize(vLightDirection_cs);
+	vec3 e = normalize(vEyeDirection_cs);
+	vec3 r = reflect(-l,n);
+
+	float cosTheta = clamp(dot(n,l), 0.0,1.0);
+
+	float cosAlpha = clamp( dot( e,r ), 0.0,1.0 );
+
+	float LightPower = 4000.0/(distance*distance);
+  float shininess = 35.0;
+
+	gl_FragColor.rgb =
+		MaterialAmbientColor  +
+		MaterialDiffuseColor * LightColor * LightPower * cosTheta +
+	  LightColor * LightPower * (pow(cosAlpha, shininess) *  texture2D(uSpecularTexture, vTexcoord + timeShifter).rgb);
+
+	gl_FragColor.a = 1.0;
+}
+</script>
+
+
+<script src="resources/jquery.3.2.1.min.js"></script>
+<script src="resources/underscore.js"></script>
+
+<script type="text/javascript" src="common/webgl-utils.js"></script>
+<script type="text/javascript" src="common/initShaders.js"></script>
+<script type="text/javascript" src="common/MV.js"></script>
+<script type="text/javascript" src="common/numeric-1.2.6.min.js"></script>
+
+<script type="text/javascript" src="shaderProgram.js"></script>
+<script type="text/javascript" src="mathUtils.js"></script>
+<script type="text/javascript" src="BezierSurface.js"></script>
+<script type="text/javascript" src="SurfaceModel.js"></script>
+<script type="text/javascript" src="models.js"></script>
+<script type="text/javascript" src="camera.js"></script>
+<script type="text/javascript" src="draggablePoints.js"></script>
+<script type="text/javascript" src="mouseStateMachine.js"></script>
+<script type="text/javascript" src="eventHandling.js"></script>
+<script type="text/javascript" src="main.js"></script>
+
+
+
+</head>
+
+
+
+<body>
+   <div class="row">
+   <div class="col">
+      <canvas id="gl-canvas" width="1150" height="700"></canvas>
+   </div>
+   <div class="col" style="margin-left: -2%; margin-right:0px;">
+      <div class="container">
+         <div class="row" class="margin: 0px;">
+            <div class="card card-signup" data-background-color="red" style="margin-top: 100px; margin-right: 5px; margin-left: -25px">
+               <form class="form" method="" action="">
+                  <div class="header text-center">
+                     <h4 class="title title-up">Settings</h4>
+                  </div>
+                  <div class="card-body">
+                     <div class="input-group form-group-no-border">
+                        <span class="input-group-addon">
+                        <i class="now-ui-icons design_vector"></i>
+                        </span>
+                        <input type="text" class="form-control" id="contPointX" placeholder="Control Point Count X" value="5">
+                     </div>
+                     <div class="input-group form-group-no-border">
+                        <span class="input-group-addon">
+                        <i class="now-ui-icons design_vector"></i>
+                        </span>
+                        <input type="text" class="form-control" id="contPointY" placeholder="Control Point Count Y" value="5">
+                     </div>
+                     <div class="checkbox">
+                        <input id="preserveCheck" type="checkbox">
+                        <label for="preserveCheck">
+                        Preserve Resolution?
+                        </label>
+                     </div>
+                     <div class="radio">
+                        <input type="radio" name="radio1" id="phongShadingRadio" checked="">
+                        <label for="phongShadingRadio">
+                        Phong Shader
+                        </label>
+                     </div>
+                     <div class="radio">
+                        <input type="radio" name="radio1" id="gouraudShadingRadio"checked="">
+                        <label for="gouraudShadingRadio">
+                        Gouraud Shading
+                        </label>
+                     </div>
+                     <div class="radio">
+                        <input type="radio" name="radio1" id="wireShadingRadio" checked="">
+                        <label for="wireShadingRadio">
+                        Wireframe Shading
+                        </label>
+                     </div>
+                     <div class="footer text-center">
+                        <a id="recreateButton" onclick="init()" class="btn btn-neutral btn-round btn-lg" style="color:red;">Create</a>
+                     </div>
+               </form>
+               </div>
+
+            </div>
+         </div>
+         <br>
+         <div>
+           <a class="btn btn-danger" onclick="switchTexture()" style="color:white; margin-left: 22%">
+           Switch Texture
+           </a>
+         </div>
+      </div>
+   </div>
+</body>
+</html>
