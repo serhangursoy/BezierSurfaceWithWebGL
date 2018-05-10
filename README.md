@@ -1,3 +1,6 @@
+
+![HeaderImg](http://tw.greywool.com/i/tMh7k.jpg)
+
 # Bezier Surface With WebGL
 This project aims to create a Bezier Surface with n-degree Bezier Curves. It also handles parametric texture mapping, normal mapping and specular mapping.
 ## About
@@ -10,4 +13,8 @@ For some mathematical operations ( like factorial ) I used Stackoverflow
 For general information about Bezier surfaces and bezier curves I used our textbook and handout that given by our lecturer
 
 As an extra work, I implemented Parametric Texture Mapping, Bump(Normal) Mapping and Specular Mapping for this assignment. I used several royalty-free textures which can be seen in the Texture folder.
+
+## Feel free to star, fork or eat this code (If you can..)
+
+
 
